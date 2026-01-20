@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: vnstock_ai_agent
+Version: 0.1.0
+Summary: Vietnamese Stock AI Advisor Agent with HippoRAG memory
+Requires-Python: >=3.10
+Requires-Dist: psycopg2-binary>=2.9.9
+Requires-Dist: sqlalchemy>=2.0.29
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: requests>=2.31.0
+Requires-Dist: openai>=1.40.0
+Requires-Dist: tqdm>=4.66.0

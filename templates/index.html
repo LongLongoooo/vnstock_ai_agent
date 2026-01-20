@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lmingle - Stock Advisor</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon_withbackground.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><img src="{{ url_for('static', filename='images/icon.png') }}" alt="Lmingle" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 10px;">Lmingle</h1>
+            <p class="subtitle">Stock Advisor</p>
+        </header>
+
+        <div class="card">
+            <div class="info-section">
+                <h3>📋 Available Commands:</h3>
+                <ul>
+                    <li><code>/newadvice "TICKER"</code> - Get new investment advice for a stock</li>
+                    <li><code>/updateadvice "TICKER"</code> - Update existing advice for a stock</li>
+                    <li><code>/recall "TICKER"</code> - Retrieve previously stored advice</li>
+                    <li><code>/cache "TICKER"</code> - View cached price/PE/PB/ROE snapshot</li>
+                    <li><code>/stats</code> or <code>/stats "TICKER"</code> - View audit statistics</li>
+                    <li><code>/audits</code> or <code>/audits "TICKER"</code> - View recent audit records</li>
+                </ul>
+            </div>
+
+            <div class="chat-container">
+                <div id="messages" class="messages"></div>
+            </div>
+
+            <div class="input-section">
+                <input 
+                    type="text" 
+                    id="commandInput" 
+                    placeholder='Enter command, e.g., /newadvice "VNM"'
+                    autocomplete="off"
+                >
+                <button id="sendBtn" onclick="sendCommand()">
+                    <span id="btnText">Send</span>
+                    <span id="btnLoader" class="loader" style="display: none;"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="examples">
+            <h4>💡 Example queries:</h4>
+            <div class="example-buttons">
+                <button class="example-btn" onclick="setCommand('/newadvice &quot;VNM&quot;')">/newadvice "VNM"</button>
+                <button class="example-btn" onclick="setCommand('/newadvice &quot;FPT&quot;')">/newadvice "FPT"</button>
+                <button class="example-btn" onclick="setCommand('/recall &quot;FPT&quot;')">/recall "FPT"</button>
+                <button class="example-btn" onclick="setCommand('/stats')">/stats</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
