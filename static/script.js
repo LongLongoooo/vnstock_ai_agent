@@ -35,6 +35,7 @@ function addMessage(content, type = 'assistant') {
     } else {
         // Check if result has formatted report
         let displayContent = content;
+        let chartHtml = '';
         try {
             const parsed = JSON.parse(content);
             
@@ -44,6 +45,28 @@ function addMessage(content, type = 'assistant') {
             } else {
                 displayContent = JSON.stringify(parsed, null, 2);
             }
+
+            // Source reliability chart — shown whenever advice is returned
+            if (parsed._source_chart_url) {
+                const t = new Date().getTime();
+                const rel = parsed._source_reliability || {};
+                const trusted    = rel.trusted    || 0;
+                const nonTrusted = rel.non_trusted || 0;
+                const total      = trusted + nonTrusted;
+                const pct        = total > 0 ? ((trusted / total) * 100).toFixed(1) : '0.0';
+                chartHtml = `
+                    <div class="source-chart-section">
+                        <h4>📊 Source Reliability</h4>
+                        <p>
+                            ✅ Trusted: <strong>${trusted}</strong> &nbsp;|&nbsp;
+                            ⚠️ Non-trusted: <strong>${nonTrusted}</strong> &nbsp;|&nbsp;
+                            Trusted rate: <strong>${pct}%</strong>
+                        </p>
+                        <img src="${parsed._source_chart_url}?t=${t}"
+                             alt="Source Reliability Chart"
+                             style="max-width:100%;border-radius:8px;margin-top:8px;" />
+                    </div>`;
+            }
         } catch (e) {
             // Not JSON, use as is
         }
@@ -51,6 +74,7 @@ function addMessage(content, type = 'assistant') {
         messageDiv.innerHTML = `
             <div><strong>🤖 Agent:</strong></div>
             <pre>${escapeHtml(displayContent)}</pre>
+            ${chartHtml}
             <div class="timestamp">${timestamp}</div>
         `;
     }

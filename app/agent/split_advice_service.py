@@ -26,6 +26,7 @@ from app.memory.hipporag_store import (
 from app.memory.numeric_cache import upsert_numeric_snapshot, get_numeric_snapshot
 from app.memory.advice_audit import create_advice_audit
 from app.utils.formatter import format_advice_report
+from app.utils.sentiment_analysis import analyze_source_reliability, generate_source_chart
 from app.tools.quant_score_sys import (
     calculate_fundamental_score,
     calculate_technical_score,
@@ -274,6 +275,15 @@ def new_advice(ticker: str, sector_hint: str = None):
         }
     }
     
+    # Source reliability chart (trusted vs non-trusted articles)
+    try:
+        reliability = analyze_source_reliability(evidence)
+        chart_path  = generate_source_chart(reliability, ticker)
+        strategy["_source_reliability"] = reliability
+        strategy["_source_chart_url"]   = f"/{chart_path.replace(chr(92), '/')}"
+    except Exception as e:
+        print(f"Warning: Failed to generate source chart: {e}")
+
     # Add formatted report for display (AFTER quantitative analysis is added)
     strategy["_formatted_report"] = format_advice_report(strategy, ticker)
     
@@ -411,6 +421,15 @@ def update_advice(ticker: str, sector_hint: str = None):
         }
     }
     
+    # Source reliability chart (trusted vs non-trusted articles)
+    try:
+        reliability = analyze_source_reliability(evidence)
+        chart_path  = generate_source_chart(reliability, ticker)
+        new_strategy["_source_reliability"] = reliability
+        new_strategy["_source_chart_url"]   = f"/{chart_path.replace(chr(92), '/')}"
+    except Exception as e:
+        print(f"Warning: Failed to generate source chart: {e}")
+
     # Add formatted report for display (AFTER quantitative analysis is added)
     new_strategy["_formatted_report"] = format_advice_report(new_strategy, ticker)
 
