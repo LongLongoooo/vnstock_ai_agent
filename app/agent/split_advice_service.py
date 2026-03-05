@@ -26,6 +26,15 @@ from app.memory.hipporag_store import (
 from app.memory.numeric_cache import upsert_numeric_snapshot, get_numeric_snapshot
 from app.memory.advice_audit import create_advice_audit
 from app.utils.formatter import format_advice_report
+from app.utils.sentiment_analysis import analyze_source_reliability, generate_source_chart
+from app.tools.quant_score_sys import (
+    calculate_fundamental_score,
+    calculate_technical_score,
+    calculate_critical_risk_score,
+    calculate_expected_return,
+    calculate_composite_score,
+    calculate_sharpe_ratio
+)
 
 def _collect_evidence(ticker: str, sector_hint: str = None):
     """Collect evidence from all sources"""
@@ -49,10 +58,7 @@ def _collect_evidence(ticker: str, sector_hint: str = None):
 
 def new_advice(ticker: str, sector_hint: str = None):
     """
-    Generate new investment advice using split processing:
-    - Groq 1: Company fundamentals & market data
-    - Groq 2: Macro & cycle analysis
-    - ChatGPT: Final synthesis
+    Generate new investment advice using split processing with quantitative scores.
     """
     # Step 1: Collect evidence
     evidence = _collect_evidence(ticker, sector_hint)
@@ -194,7 +200,91 @@ def new_advice(ticker: str, sector_hint: str = None):
     strategy["_part1_summary"] = part1_summary
     strategy["_part2_summary"] = part2_summary
     
-    # Add formatted report for display
+    # NEW: Calculate quantitative scores from the analysis (BEFORE formatting report)
+    valuation_metrics = part1_summary.get("valuation_metrics", {})
+    financial_metrics = part1_summary.get("financial_metrics", {})
+    technical_indicators = part1_summary.get("technical_indicators", {})
+    legal_governance = part1_summary.get("legal_governance_risks", {})
+    
+    # Calculate scores
+    fundamental_score = calculate_fundamental_score(valuation_metrics, financial_metrics)
+    technical_score = calculate_technical_score(
+        technical_indicators,
+        part1_summary.get("technical_summary", "")
+    )
+    
+    # ⚠️ CRITICAL: Calculate critical risk score (most important for Vietnamese stocks)
+    critical_risk_score = calculate_critical_risk_score(
+        legal_governance,
+        strategy.get("key_risks", [])
+    )
+    
+    # Calculate composite score (critical risk can override other factors)
+    composite_score = calculate_composite_score(
+        fundamental_score,
+        technical_score,
+        critical_risk_score
+    )
+    
+    # Calculate expected returns
+    price_current = part1_summary.get("price_current", 0)
+    price_targets = {
+        "short_term": strategy.get("short_term_outlook", {}).get("price_target"),
+        "mid_term": strategy.get("mid_term_outlook", {}).get("price_target"),
+        "long_term": (strategy.get("long_term_outlook", {}).get("intrinsic_value_range") or [0, 0])[1]
+    }
+    expected_returns = calculate_expected_return(price_current, price_targets)
+    
+    # ⚠️ ADJUST DECISION IF CRITICAL RISK DETECTED (but don't completely override)
+    if critical_risk_score.get("is_deal_breaker"):
+        # Reduce confidence and portfolio weight, but don't force AVOID
+        strategy["confidence"] = max(0.3, strategy.get("confidence", 0.5) * 0.6)
+        strategy["portfolio_weight_pct"] = max(0, strategy.get("portfolio_weight_pct", 0) * 0.5)
+        
+        # Change risk level
+        if strategy.get("risk_level") != "EXTREMELY_RISKY":
+            strategy["risk_level"] = "RISKY" if strategy.get("risk_level") == "MODERATE" else "EXTREMELY_RISKY"
+        
+        # Add critical risk warning to reasons
+        critical_warning = f"⚠️ CRITICAL RISK: {critical_risk_score.get('legal_summary', 'Serious legal/governance issues detected')}"
+        if "reasons" in strategy:
+            strategy["reasons"].insert(0, critical_warning)
+        
+        # Add to key risks
+        if "key_risks" in strategy and critical_warning not in strategy["key_risks"]:
+            strategy["key_risks"].insert(0, critical_warning)
+    
+    # Add quantitative analysis to strategy
+    strategy["quantitative_analysis"] = {
+        "fundamental_score": fundamental_score,
+        "technical_score": technical_score,
+        "critical_risk_score": critical_risk_score,
+        "composite_score": composite_score,
+        "expected_returns": expected_returns,
+        "price_metrics": {
+            "current_price": price_current,
+            "pe_ratio": valuation_metrics.get("pe"),
+            "pb_ratio": valuation_metrics.get("pb"),
+            "roe": valuation_metrics.get("roe"),
+            "upside_potential_pct": expected_returns.get("weighted_expected_return", 0)
+        },
+        "risk_assessment": {
+            "is_deal_breaker": critical_risk_score.get("is_deal_breaker", False),
+            "recommendation": critical_risk_score.get("recommendation"),
+            "action": critical_risk_score.get("action")
+        }
+    }
+    
+    # Source reliability chart (trusted vs non-trusted articles)
+    try:
+        reliability = analyze_source_reliability(evidence)
+        chart_path  = generate_source_chart(reliability, ticker)
+        strategy["_source_reliability"] = reliability
+        strategy["_source_chart_url"]   = f"/{chart_path.replace(chr(92), '/')}"
+    except Exception as e:
+        print(f"Warning: Failed to generate source chart: {e}")
+
+    # Add formatted report for display (AFTER quantitative analysis is added)
     strategy["_formatted_report"] = format_advice_report(strategy, ticker)
     
     return strategy
@@ -277,7 +367,70 @@ def update_advice(ticker: str, sector_hint: str = None):
     new_strategy["_part1_changes"] = part1_changes
     new_strategy["_part2_changes"] = part2_changes
     
-    # Add formatted report for display
+    # Calculate quantitative scores (similar to new_advice)
+    valuation_metrics = part1_changes.get("valuation_metrics", {})
+    financial_metrics = part1_changes.get("financial_metrics", {})
+    technical_indicators = part1_changes.get("technical_indicators", {})
+    legal_governance = part1_changes.get("legal_governance_risks", {})
+    
+    # Calculate scores
+    fundamental_score = calculate_fundamental_score(valuation_metrics, financial_metrics)
+    technical_score = calculate_technical_score(
+        technical_indicators,
+        part1_changes.get("technical_summary", "")
+    )
+    
+    critical_risk_score = calculate_critical_risk_score(
+        legal_governance,
+        new_strategy.get("key_risks", [])
+    )
+    
+    composite_score = calculate_composite_score(
+        fundamental_score,
+        technical_score,
+        critical_risk_score
+    )
+    
+    # Calculate expected returns
+    price_current = part1_changes.get("price_current", 0)
+    price_targets = {
+        "short_term": new_strategy.get("short_term_outlook", {}).get("price_target"),
+        "mid_term": new_strategy.get("mid_term_outlook", {}).get("price_target"),
+        "long_term": (new_strategy.get("long_term_outlook", {}).get("intrinsic_value_range") or [0, 0])[1]
+    }
+    expected_returns = calculate_expected_return(price_current, price_targets)
+    
+    # Add quantitative analysis to strategy
+    new_strategy["quantitative_analysis"] = {
+        "fundamental_score": fundamental_score,
+        "technical_score": technical_score,
+        "critical_risk_score": critical_risk_score,
+        "composite_score": composite_score,
+        "expected_returns": expected_returns,
+        "price_metrics": {
+            "current_price": price_current,
+            "pe_ratio": valuation_metrics.get("pe"),
+            "pb_ratio": valuation_metrics.get("pb"),
+            "roe": valuation_metrics.get("roe"),
+            "upside_potential_pct": expected_returns.get("weighted_expected_return", 0)
+        },
+        "risk_assessment": {
+            "is_deal_breaker": critical_risk_score.get("is_deal_breaker", False),
+            "recommendation": critical_risk_score.get("recommendation"),
+            "action": critical_risk_score.get("action")
+        }
+    }
+    
+    # Source reliability chart (trusted vs non-trusted articles)
+    try:
+        reliability = analyze_source_reliability(evidence)
+        chart_path  = generate_source_chart(reliability, ticker)
+        new_strategy["_source_reliability"] = reliability
+        new_strategy["_source_chart_url"]   = f"/{chart_path.replace(chr(92), '/')}"
+    except Exception as e:
+        print(f"Warning: Failed to generate source chart: {e}")
+
+    # Add formatted report for display (AFTER quantitative analysis is added)
     new_strategy["_formatted_report"] = format_advice_report(new_strategy, ticker)
 
     return new_strategy

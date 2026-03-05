@@ -37,30 +37,67 @@ COMPANY NEWS DATA:
 {company_news_hits}
 
 TASK:
-Analyze the above data and return a JSON object with:
+Analyze the above data and return a VALID JSON object with:
 {{
   "price_current": number or null,
-  "valuation_metrics": {{"pe": number, "pb": number, "roe": number}},
+  "valuation_metrics": {{
+    "pe": number or null, 
+    "pb": number or null, 
+    "roe": number or null,
+    "eps": number or null,
+    "revenue_growth_yoy": number or null,
+    "profit_margin": number or null,
+    "debt_to_equity": number or null,
+    "current_ratio": number or null
+  }},
   "financial_summary": string (2-3 sentences about revenue, profit, debt),
+  "financial_metrics": {{
+    "revenue_ttm": number or null,
+    "net_income_ttm": number or null,
+    "operating_cash_flow": number or null,
+    "free_cash_flow": number or null,
+    "total_debt": number or null,
+    "total_equity": number or null
+  }},
   "technical_summary": string (2-3 sentences about trends, RSI, MACD, support/resistance),
+  "technical_indicators": {{
+    "rsi": number or null,
+    "macd": string ("bullish"|"bearish"|"neutral") or null,
+    "sma_50": number or null,
+    "sma_200": number or null,
+    "support_level": number or null,
+    "resistance_level": number or null,
+    "volume_trend": string ("increasing"|"decreasing"|"stable") or null
+  }},
+  "dividend_metrics": {{
+    "dividend_yield": number or null,
+    "payout_ratio": number or null,
+    "dividend_growth_3yr": number or null
+  }},
   "news_highlights": [string] (3-5 key company events/news),
   "legal_governance_risks": {{
     "has_critical_issues": boolean,
     "severity": "NONE"|"LOW"|"MODERATE"|"HIGH"|"CRITICAL",
-    "issues": [string] (list all legal/governance problems found),
-    "summary": string (2-3 sentences explaining the legal/governance situation)
+    "issues": [string],
+    "summary": string
   }},
   "insider_activity": string (1-2 sentences),
-  "dividend_cashflow": string (2-3 sentences about dividend history and free cash flow),
   "competitive_position": string (2-3 sentences about market share, peers, moats),
   "key_risks": [string] (3-5 company-specific risks, MUST include legal risks if any)
 }}
 
-⚠️ CRITICAL: Pay special attention to legal risks. Search for keywords like:
-- "bắt giữ" (arrested), "khởi tố" (prosecuted), "tử hình" (death sentence)
-- "gian lận" (fraud), "tham ô" (embezzlement), "vi phạm" (violation)
-- "bê bối" (scandal), "điều tra" (investigation), "thanh tra" (inspection)
-If found, set has_critical_issues=true and severity appropriately.
+⚠️⚠️⚠️ CRITICAL JSON RULES:
+1. ALL numeric values MUST be computed decimals (e.g., -27.38), NOT expressions (NOT -465442/1700000)
+2. Use null for missing data, NOT empty strings or undefined
+3. ALL strings MUST be properly escaped (use \' instead of ' inside strings)
+4. NO trailing commas in arrays or objects
+5. Calculate percentages as decimals (e.g., 15.5 for 15.5%, NOT "15.5%")
+6. ROE should be percentage (e.g., -27.38 for -27.38%)
+
+EXAMPLE of CORRECT numeric formatting:
+"roe": -27.38   ✅ CORRECT
+"roe": -465442/1700000   ❌ WRONG - Don't use expressions!
+"roe": null   ✅ CORRECT if data unavailable
 """
 
 # ============= PART 2: MACRO & CYCLE ANALYSIS (Groq Client 2) =============
@@ -140,60 +177,88 @@ Synthesize the above analyses and return a STRICT JSON object with:
   "take_profit": [low, high],
   "holding_months": integer,
   "confidence": number (0-1),
+  
+  // NEW: Quantitative Scores
+  "quantitative_scores": {{
+    "fundamental_score": number (0-100),
+    "technical_score": number (0-100),
+    "risk_score": number (0-100),
+    "composite_score": number (0-100),
+    "value_score": number (0-100),  // Based on PE, PB relative to intrinsic value
+    "growth_score": number (0-100),  // Based on revenue/earnings growth
+    "quality_score": number (0-100)  // Based on ROE, margins, debt levels
+  }},
+  
+  // NEW: Expected Returns
+  "expected_returns": {{
+    "short_term_pct": number,
+    "mid_term_pct": number,
+    "long_term_pct": number,
+    "weighted_avg_pct": number,
+    "best_case_pct": number,
+    "worst_case_pct": number
+  }},
+  
+  // NEW: Risk Metrics
+  "risk_metrics": {{
+    "downside_risk_pct": number,
+    "max_drawdown_pct": number,
+    "volatility_estimate": number,
+    "sharpe_ratio_estimate": number,
+    "probability_of_loss": number (0-1)
+  }},
+  
+  // NEW: Price Targets with Probability
+  "price_targets_detailed": {{
+    "bear_case": {{"price": number, "probability": number}},
+    "base_case": {{"price": number, "probability": number}},
+    "bull_case": {{"price": number, "probability": number}}
+  }},
+  
   "key_risks": [string] (5-7 risks),
   "reasons": [string] (5-7 reasons for the decision),
   "evidence_summary": [string] (8-10 key facts supporting the strategy),
   "cycle_assessment": string (2-3 sentences on how cycle affects this decision),
+  
   "short_term_outlook": {{
     "timeframe": "0-3 months",
     "decision": "BUY"|"HOLD"|"SELL"|"WATCH"|"AVOID",
     "confidence": number (0-1),
     "key_factors": [string] (3-5 factors),
-    "price_target": number or null
+    "price_target": number or null,
+    "expected_return_pct": number,
+    "success_probability": number (0-1)
   }},
   "mid_term_outlook": {{
     "timeframe": "3-12 months",
     "decision": "BUY"|"HOLD"|"SELL"|"ACCUMULATE"|"AVOID",
     "confidence": number (0-1),
     "key_factors": [string] (3-5 factors),
-    "price_target": number or null
+    "price_target": number or null,
+    "expected_return_pct": number,
+    "success_probability": number (0-1)
   }},
   "long_term_outlook": {{
     "timeframe": "1-5 years",
     "decision": "BUY"|"HOLD"|"SELL"|"STRONG_BUY"|"AVOID",
     "confidence": number (0-1),
     "key_factors": [string] (3-5 factors),
-    "intrinsic_value_range": [low, high] or null
+    "intrinsic_value_range": [low, high] or null,
+    "expected_return_pct": number,
+    "success_probability": number (0-1)
   }}
 }}
 
-⚠️ CRITICAL LEGAL/GOVERNANCE RULES (HIGHEST PRIORITY):
-- If legal_governance_risks.severity is "CRITICAL" (death sentences, major fraud, leadership arrests):
-  → decision MUST be "AVOID" or "SELL"
-  → risk_level MUST be "EXTREMELY_RISKY"
-  → portfolio_weight_pct MUST be 0
-  → confidence MUST be very high (0.8-0.95) for avoiding
-  → ALL timeframe outlooks MUST be "AVOID" or "SELL"
-  
-- If legal_governance_risks.severity is "HIGH":
-  → decision should be "SELL" or "HOLD" at most (never BUY)
-  → risk_level MUST be "EXTREMELY_RISKY" or "RISKY"
-  → portfolio_weight_pct should be 0-5% maximum
-  
-- If legal_governance_risks.severity is "MODERATE":
-  → Consider carefully, lean toward HOLD/SELL
-  → risk_level at least "RISKY"
+INSTRUCTIONS FOR QUANTITATIVE SCORES:
+1. **fundamental_score**: 0-100 based on PE, PB, ROE, margins, debt levels
+2. **technical_score**: 0-100 based on RSI, MACD, volume, support/resistance
+3. **risk_score**: 0-100 where HIGHER = MORE RISKY
+4. **composite_score**: Weighted average: (fundamental*0.5 + technical*0.3 - risk*0.2)
+5. **expected_returns**: Calculate % return from current price to targets
+6. **sharpe_ratio**: (Expected Return - Risk Free Rate) / Volatility
+7. **probability_of_loss**: Estimate based on risk factors and market conditions
 
-CYCLE-BASED DECISION RULES (SECONDARY PRIORITY):
-- If cycle phase is PEAK or late EXPANSION: Be defensive (HOLD/SELL, lower weights, higher cash)
-- If cycle phase is TROUGH or late CONTRACTION: Be opportunistic (BUY/BUY_MORE, higher weights)
-- If market_timing_suggestion is "defensive_hold" or "consider_exit": Favor HOLD/SELL
-- If market_timing_suggestion is "opportunistic_buy": Favor BUY/BUY_MORE
-- Short-term should focus on technical momentum and near-term catalysts
-- Mid-term should focus on business fundamentals and earnings growth
-- Long-term should focus on competitive moats and industry structure
-
-⚠️ REMEMBER: Legal risks override ALL other considerations. No valuation is cheap enough to justify investing in a company with critical legal/governance issues.
+⚠️ BE SPECIFIC WITH NUMBERS. Avoid vague terms like "good" or "bad". Use percentages and ratios.
 """
 
 # ============= UPDATE ADVICE PROMPTS =============
